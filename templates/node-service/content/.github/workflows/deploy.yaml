@@ -10,6 +10,10 @@ concurrency:
 env:
 {% endraw %}
   IMAGE: ${{ values.image }}
+{% raw %}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+{% endraw %}
   SCORE_HUMANITEC_VERSION: '0.8.0'
   APP_NAME: ${{ values.name }}
 
@@ -26,16 +30,23 @@ jobs:
       - name: Set Tag with SHA
         run: echo "TAG=`echo $GITHUB_SHA | cut -c 1-7`" >> $GITHUB_ENV
 
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: login to aws ecr
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+        with:
+          mask-password: 'true'
+
       - name: "set CONTAINER_REGISTRY env var"
         run: |
-          ACR_SERVER_NAME=${{ secrets.ACR_SERVER_NAME }}
-          echo "CONTAINER_REGISTRY=$ACR_SERVER_NAME" >> "$GITHUB_ENV"
-
-      - run: |
-          echo "${{ secrets.ACR_PUSH_SP_PASSWORD }}" | docker login \
-              $CONTAINER_REGISTRY \
-              -u ${{ secrets.ACR_PUSH_SP_ID }} \
-              --password-stdin
+          echo "CONTAINER_REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
 
       - run: docker build --platform linux/amd64 . -t $CONTAINER_REGISTRY/$IMAGE:$TAG
       - run: docker push $CONTAINER_REGISTRY/$IMAGE:$TAG
