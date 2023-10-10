@@ -31,7 +31,8 @@ jobs:
           ACR_SERVER_NAME=${{ secrets.ACR_SERVER_NAME }}
           echo "CONTAINER_REGISTRY=$ACR_SERVER_NAME" >> "$GITHUB_ENV"
 
-      - run: |
+      - name: Login to ACR
+        run: |
           echo "${{ secrets.ACR_PUSH_SP_PASSWORD }}" | docker login \
               $CONTAINER_REGISTRY \
               -u ${{ secrets.ACR_PUSH_SP_ID }} \
